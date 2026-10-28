@@ -1,0 +1,121 @@
+# Earnings Call Technology Analyzer - data pipeline configuration
+# Every path is relative to `data_dir`, which can be overridden with the
+# ECNLP_DATA_DIR environment variable (use this on the Unity cluster to point
+# at project storage, e.g. /project/pi_xxx/earnings_nlp_data).
+
+data_dir: ./data
+
+# ---------------------------------------------------------------------------
+# Sample frame
+# ---------------------------------------------------------------------------
+# Pilot list (Sprint 1, NLP-01/NLP-02). Mix of AI-heavy and traditional firms so
+# the buzzword-vs-substance contrast shows up early. Use ONE share class per
+# company (GOOGL, not GOOGL+GOOG) or the same calls will be pulled twice.
+tickers:
+  - NVDA
+  - MSFT
+  - GOOGL
+  - AMZN
+  - META
+  - AAPL
+  - JPM
+  - WMT
+  - UNH
+  - CAT
+
+# Optional: read additional tickers from a CSV with a `ticker` column
+# (e.g. an S&P 500 constituent list). Leave blank to use only the list above.
+tickers_csv:
+
+date_from: "2025-01-01"   # earningscalls.dev archive begins in 2020
+date_to:                  # blank = today
+
+# ---------------------------------------------------------------------------
+# earningscalls.dev
+# ---------------------------------------------------------------------------
+earningscalls:
+  # "direct"   -> subscribed on earningscalls.dev  (header X-API-Key)
+  # "rapidapi" -> subscribed through RapidAPI      (X-RapidAPI-Key/Host)
+  provider: direct
+  api_key_env: EARNINGSCALLS_API_KEY
+
+  # Ultra tier allows 60 requests/minute and 20,000/month. We stay a little
+  # under the per-minute limit, and refuse to start a run that would push
+  # the month's usage past `monthly_safety_margin` requests of the limit.
+  requests_per_minute: 55
+  monthly_limit: 20000
+  monthly_safety_margin: 500
+  max_requests_per_run: 6000
+
+  # Restrict to US listings so bare symbols don't collide with foreign
+  # companies (e.g. PNB). Set to blank to allow every country.
+  country: US
+  event_type: earnings
+
+  # Full-text query used to find calls that mention AI. Google-style syntax:
+  # quotes = phrase, OR = boolean or. PostgreSQL stemming is applied server-side.
+  ai_query: '"artificial intelligence" OR AI OR "machine learning" OR "generative AI" OR GenAI OR LLM OR "large language model" OR agentic'
+
+  # false = keep only calls that matched ai_query (the project spec).
+  # true  = keep every earnings call and set calls.mentions_ai = 0/1, which
+  #         gives a non-AI control group for the regressions later.
+  include_non_ai_calls: false
+
+  # Call lists change as new calls arrive; transcripts do not.
+  call_list_cache_days: 1
+
+  # If the API returns event times without a timezone, interpret them as:
+  naive_timestamp_tz: UTC
+
+# ---------------------------------------------------------------------------
+# Yahoo Finance (yfinance)
+# ---------------------------------------------------------------------------
+market:
+  benchmarks: [SPY]          # market proxy for abnormal returns
+  # Extra history before date_from so the event-study estimation window
+  # (up to 250 trading days) exists for the first calls.
+  history_buffer_days: 400
+  pause_between_tickers_sec: 1.0
+  max_retries: 4
+  info_cache_days: 30
+  price_cache_days: 1
+  earnings_dates_limit: 100  # Yahoo caps this at 100 rows (~25 years)
+  # Overrides when the transcript ticker differs from Yahoo's symbol.
+  # Dots are converted to dashes automatically (BRK.B -> BRK-B).
+  symbol_overrides: {}
+
+# ---------------------------------------------------------------------------
+# Cleaning / NLP preparation
+# ---------------------------------------------------------------------------
+cleaning:
+  drop_operator_segments: true
+  # Preliminary AI keyword dictionary (finalised in POT-02). Each entry is a
+  # regular expression matched on word boundaries. Case-sensitive terms avoid
+  # false hits like "ml" (millilitres) or "Ai" as a name.
+  ai_terms_case_sensitive: ['AI', 'A\.I\.', 'Gen ?AI', 'ML', 'LLMs?', 'GPT(-?\d+)?']
+  ai_terms_case_insensitive:
+    - artificial intelligence
+    - machine learning
+    - generative ai
+    - large language models?
+    - deep learning
+    - neural networks?
+    - agentic
+    - ai agents?
+    - copilots?
+    - chatbots?
+    - computer vision
+    - natural language processing
+    - predictive analytics
+
+# ---------------------------------------------------------------------------
+# Event windows (market reaction around each call)
+# ---------------------------------------------------------------------------
+events:
+  market_open: "09:30"
+  market_close: "16:00"
+  windows: [[0, 1], [-1, 1], [0, 3], [2, 30]]
+  estimation_window: [-250, -11]
+  min_estimation_obs: 100
+  volume_baseline_window: [-60, -11]
+  earnings_date_match_days: 3   # match Yahoo EPS-surprise rows within +/- N days
