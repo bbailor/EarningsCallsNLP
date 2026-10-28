@@ -141,6 +141,39 @@ CREATE TABLE IF NOT EXISTS run_log (
     status        TEXT,
     notes         TEXT
 );
+
+CREATE TABLE IF NOT EXISTS annotation_samples (
+    batch_id       TEXT PRIMARY KEY,
+    created_at     TEXT NOT NULL,
+    requested_size INTEGER NOT NULL,
+    actual_size    INTEGER NOT NULL,
+    double_fraction REAL NOT NULL,
+    seed           INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS annotation_sample_items (
+    batch_id       TEXT NOT NULL,
+    sentence_id    TEXT NOT NULL,
+    sample_index   INTEGER NOT NULL,
+    double_label   INTEGER NOT NULL,
+    context_text   TEXT NOT NULL,
+    PRIMARY KEY (batch_id, sentence_id),
+    UNIQUE (batch_id, sample_index),
+    FOREIGN KEY (batch_id) REFERENCES annotation_samples(batch_id),
+    FOREIGN KEY (sentence_id) REFERENCES sentences(sentence_id)
+);
+
+CREATE TABLE IF NOT EXISTS annotations (
+    batch_id       TEXT NOT NULL,
+    sentence_id    TEXT NOT NULL,
+    annotator      TEXT NOT NULL,
+    label          INTEGER NOT NULL CHECK (label BETWEEN 0 AND 3),
+    notes          TEXT,
+    updated_at     TEXT NOT NULL,
+    PRIMARY KEY (batch_id, sentence_id, annotator),
+    FOREIGN KEY (batch_id, sentence_id)
+        REFERENCES annotation_sample_items(batch_id, sentence_id)
+);
 """
 
 

@@ -13,6 +13,9 @@ dependencies = ["requests>=2.31", "pandas>=2.1", "numpy>=1.26", "pyyaml>=6.0",
 [project.scripts]
 ecnlp = "ecnlp.pipeline:main"
 
+[project.optional-dependencies]
+annotation = ["streamlit>=1.35"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
