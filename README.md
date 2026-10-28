@@ -9,10 +9,27 @@ conda env create -f environment.yml && conda activate ecnlp   # or: pip install 
 cp .env.example .env            # paste your Ultra API key into .env
 python -m ecnlp.pipeline check  # ~4 requests: verifies key, quota, live response schema
 python -m ecnlp.pipeline all    # transcripts -> market -> prepare -> events -> export
-pytest                          # 16 offline tests (mocked API + mocked yfinance)
+pytest                          # offline tests (mocked API + mocked yfinance)
 ```
 
 Run stages individually with `transcripts`, `market`, `prepare`, `events`, `export`. Override the ticker list for a quick test: `--tickers NVDA,MSFT`. Everything is configured in `config.yaml`.
+
+## Human annotation prototype (Req2.1 / Req2.2)
+
+After running the `transcripts` and `prepare` stages, install the optional UI
+dependency and start the local annotation app:
+
+```bash
+pip install -e ".[annotation]"
+python -m streamlit run src/ecnlp/annotation_app.py
+```
+
+In the app, create a reproducible sample of up to 100 AI-mention passages
+(default seed `491`), with 20% marked for independent double-labeling. Each
+sample and its labels are saved in SQLite. Annotators identify themselves with
+consistent names or initials; the app reports Cohen's kappa for a selected
+annotator pair on jointly labeled double-label passages. The level 0–3 codebook
+and boundary guidance are in [docs/annotation-guideline.md](docs/annotation-guideline.md).
 
 ## What each stage does
 
