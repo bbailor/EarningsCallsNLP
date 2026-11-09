@@ -5,6 +5,15 @@ pyyaml>=6.0
 yfinance>=1.3
 pyarrow>=14
 python-dotenv>=1.0
+# NLP stage (FinBERT + BERTopic). On a CUDA machine install torch from
+# https://pytorch.org first so pip does not pull the CPU-only wheel.
+torch>=2.1
+transformers>=4.40
+sentence-transformers>=3.0
+bertopic>=0.16
+umap-learn>=0.5
+hdbscan>=0.8.33
+scikit-learn>=1.3
 # tests
 pytest>=8
 responses>=0.25

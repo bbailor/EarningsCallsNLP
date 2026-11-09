@@ -8,6 +8,13 @@
     python -m ecnlp.pipeline export        # parquet/csv exports + coverage report (offline)
     python -m ecnlp.pipeline all           # everything above except check
 
+NLP stages (offline, read the prepared `sentences` table; no market data needed):
+
+    python -m ecnlp.pipeline sentiment     # FinBERT per sentence + per AI mention (incremental)
+    python -m ecnlp.pipeline topics        # BERTopic over the whole corpus (refit each run)
+    python -m ecnlp.pipeline scores        # call-level NLP variables + nlp_* exports
+    python -m ecnlp.pipeline nlp           # sentiment -> topics -> scores
+
 Options: --config PATH, --tickers NVDA,MSFT (override the list), --verbose
 """
 from __future__ import annotations
@@ -27,6 +34,7 @@ from .logging_utils import setup_logging
 log = logging.getLogger("ecnlp")
 
 STAGES = ["transcripts", "market", "prepare", "events", "export"]
+NLP_STAGES = ["sentiment", "topics", "scores"]
 
 
 def make_client(cfg: Config) -> EarningsCallsClient:
@@ -138,6 +146,18 @@ def run(stages: list[str], cfg: Config) -> int:
                 from .exports import export_all
 
                 notes = json.dumps(export_all(cfg, con))
+            elif stage == "sentiment":
+                from .sentiment import score_sentiment
+
+                notes = json.dumps(score_sentiment(cfg, con))
+            elif stage == "topics":
+                from .topics import fit_topics
+
+                notes = json.dumps(fit_topics(cfg, con))
+            elif stage == "scores":
+                from .nlp_scores import build_call_scores
+
+                notes = json.dumps(build_call_scores(cfg, con))
         except EarningsCallsError as exc:
             log.error("%s stage stopped: %s", stage, exc)
             status, notes, rc = "error", str(exc), 1
@@ -157,7 +177,7 @@ def run(stages: list[str], cfg: Config) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Earnings call NLP data pipeline")
-    ap.add_argument("stage", choices=["check", "all", *STAGES])
+    ap.add_argument("stage", choices=["check", "all", "nlp", *STAGES, *NLP_STAGES])
     ap.add_argument("--config", default=None)
     ap.add_argument("--tickers", default=None, help="comma-separated override of the ticker list")
     ap.add_argument("--verbose", action="store_true")
@@ -178,7 +198,8 @@ def main(argv: list[str] | None = None) -> int:
         except EarningsCallsError as exc:
             log.error("Check failed: %s", exc)
             return 1
-    return run(STAGES if args.stage == "all" else [args.stage], cfg)
+    stages = {"all": STAGES, "nlp": NLP_STAGES}.get(args.stage, [args.stage])
+    return run(stages, cfg)
 
 
 if __name__ == "__main__":

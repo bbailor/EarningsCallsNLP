@@ -8,26 +8,29 @@ data_dir: ./data
 # ---------------------------------------------------------------------------
 # Sample frame
 # ---------------------------------------------------------------------------
-# Pilot list (Sprint 1, NLP-01/NLP-02). Mix of AI-heavy and traditional firms so
-# the buzzword-vs-substance contrast shows up early. Use ONE share class per
-# company (GOOGL, not GOOGL+GOOG) or the same calls will be pulled twice.
+# Sprint 2 sample: the ten largest S&P 500 companies by market cap (late 2026).
+# Re-check the ranking before the final pull; 10th place moves between JPM,
+# LLY and WMT. Berkshire does not hold quarterly earnings calls, so BRK.B
+# will contribute few or no transcripts (see coverage_report.csv). Use ONE
+# share class per company (GOOGL, not GOOGL+GOOG) or the same calls will be
+# pulled twice.
 tickers:
   - NVDA
-  - MSFT
   - GOOGL
-  - AMZN
-  - META
   - AAPL
+  - MSFT
+  - AMZN
+  - AVGO
+  - META
+  - TSLA
+  - BRK.B
   - JPM
-  - WMT
-  - UNH
-  - CAT
 
 # Optional: read additional tickers from a CSV with a `ticker` column
 # (e.g. an S&P 500 constituent list). Leave blank to use only the list above.
 tickers_csv:
 
-date_from: "2025-01-01"   # earningscalls.dev archive begins in 2020
+date_from: "2021-11-01"   # last five years; earningscalls.dev archive begins in 2020
 date_to:                  # blank = today
 
 # ---------------------------------------------------------------------------
@@ -59,6 +62,7 @@ earningscalls:
   # false = keep only calls that matched ai_query (the project spec).
   # true  = keep every earnings call and set calls.mentions_ai = 0/1, which
   #         gives a non-AI control group for the regressions later.
+  # Sentiment/topics should describe whole calls, not only AI-mentioning ones.
   include_non_ai_calls: false
 
   # Call lists change as new calls arrive; transcripts do not.
@@ -119,3 +123,32 @@ events:
   min_estimation_obs: 100
   volume_baseline_window: [-60, -11]
   earnings_date_match_days: 3   # match Yahoo EPS-surprise rows within +/- N days
+
+# ---------------------------------------------------------------------------
+# NLP (FinBERT sentiment + BERTopic topics). Offline stages that read the
+# prepared `sentences` table:  python -m ecnlp.pipeline nlp
+# ---------------------------------------------------------------------------
+nlp:
+  device: auto                 # auto = cuda, then mps, then cpu
+  sentiment:
+    model: ProsusAI/finbert    # alt: yiyanghkust/finbert-tone (trained on analyst reports)
+    batch_size: 32
+    max_length: 256            # tokens; longer AI contexts are truncated
+    min_words: 3               # skip "Thanks." / "Yes." style sentences
+    score_ai_contexts: true    # also score each AI mention with +/- context_window sentences
+    context_window: 1
+    chunk_size: 2000           # sentences per DB commit (progress survives interruption)
+  topics:
+    corpus: sentences          # sentences | ai_contexts (AI themes only)
+    min_words: 8               # short sentences make noisy topics
+    min_docs: 200              # skip BERTopic below this many documents
+    embedding_model: sentence-transformers/all-MiniLM-L6-v2
+    min_topic_size: 150        # HDBSCAN min_cluster_size; 30 gave 319 topics on the top-10 sample
+    nr_topics:                 # blank = keep clusters as found; an int or "auto" merges them
+    umap_n_neighbors: 15
+    reduce_outliers: true      # reassign outlier (-1) sentences to their nearest topic
+    top_n_words: 10
+    min_df: 1
+    seed: 42
+    wide_top_n: 20             # topic_<id>_share columns in nlp_call_scores.csv
+    extra_stop_words: []       # added to English + earnings-call filler words
