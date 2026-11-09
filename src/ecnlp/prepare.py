@@ -10,7 +10,7 @@ import sqlite3
 from typing import Any
 
 from . import db
-from .cleaning import build_ai_matcher, is_boilerplate, normalize_text, split_sentences, word_count
+from .cleaning import assign_sections, build_ai_matcher, is_boilerplate, normalize_text, split_sentences, word_count
 from .config import Config
 
 log = logging.getLogger(__name__)
@@ -29,10 +29,13 @@ def prepare_text(cfg: Config, con: sqlite3.Connection, only_new: bool = False) -
 
     for cid in call_ids:
         segs = db.read_df(con, "SELECT * FROM segments WHERE call_id=? ORDER BY component_order", (cid,))
+        # Recomputed here so a change to the section rule applies without re-pulling.
+        segs["section"] = assign_sections(segs["speaker_type"].tolist())
         seg_updates, sent_rows = [], []
         for s in segs.itertuples(index=False):
             clean = normalize_text(s.text_raw)
-            seg_updates.append({"segment_id": s.segment_id, "text_clean": clean, "n_words": word_count(clean)})
+            seg_updates.append({"segment_id": s.segment_id, "text_clean": clean, "n_words": word_count(clean),
+                                "section": s.section})
             if drop_operator and s.is_operator:
                 continue
             for i, sent in enumerate(split_sentences(clean)):
@@ -51,8 +54,8 @@ def prepare_text(cfg: Config, con: sqlite3.Connection, only_new: bool = False) -
                     "ai_terms": "|".join(terms) or None,
                 })
         for u in seg_updates:
-            con.execute("UPDATE segments SET text_clean=?, n_words=? WHERE segment_id=?",
-                        (u["text_clean"], u["n_words"], u["segment_id"]))
+            con.execute("UPDATE segments SET text_clean=?, n_words=?, section=? WHERE segment_id=?",
+                        (u["text_clean"], u["n_words"], u["section"], u["segment_id"]))
         db.replace_where(con, "sentences", "call_id=?", (cid,), sent_rows)
         n_ai = sum(r["has_ai_term"] for r in sent_rows if not r["is_boilerplate"])
         con.execute("UPDATE calls SET n_sentences=?, n_ai_sentences=? WHERE call_id=?", (len(sent_rows), n_ai, cid))

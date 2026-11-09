@@ -2,9 +2,9 @@
 
 Tables created here are the ingestion/preparation half of the SDS design:
 companies, calls, segments, sentences, market_data, yf_earnings_dates,
-run_log, plus event_returns (rebuilt by events.py). The NLP tables (tech_mentions, topics, annotations,
-call_scores) are created later by the NLP stage and join on call_id /
-sentence_id.
+run_log, plus event_returns (rebuilt by events.py). The NLP stage adds
+sentiment (FinBERT), topics + topic_assignments (BERTopic) and call_scores
+(rebuilt by nlp_scores.py); they join on call_id / sentence_id.
 
 `segments` is new relative to the SDS ERD: it holds one row per speaker turn
 so sentences can be traced to a speaker and section.
@@ -130,6 +130,46 @@ CREATE TABLE IF NOT EXISTS yf_earnings_dates (
 
 -- event_returns is derived data: rebuilt with pandas.to_sql by events.py on every
 -- run, with one column per configured window (car_mkt_0_1, car_mm_m1_1, ...).
+
+CREATE TABLE IF NOT EXISTS sentiment (
+    unit_type    TEXT NOT NULL,                 -- sentence / ai_context
+    unit_id      TEXT NOT NULL,                 -- sentence_id (ai_context: id of the AI sentence)
+    model        TEXT NOT NULL,                 -- e.g. ProsusAI/finbert
+    call_id      INTEGER NOT NULL,
+    text_hash    TEXT,                          -- unit is re-scored when its text changes
+    label        TEXT,                          -- positive / negative / neutral (argmax)
+    p_positive   REAL,
+    p_negative   REAL,
+    p_neutral    REAL,
+    score        REAL,                          -- p_positive - p_negative, in [-1, 1]
+    scored_at    TEXT,
+    PRIMARY KEY (unit_type, unit_id, model)
+);
+CREATE INDEX IF NOT EXISTS ix_sentiment_call ON sentiment(call_id);
+
+CREATE TABLE IF NOT EXISTS topics (
+    corpus              TEXT NOT NULL,          -- sentences / ai_contexts
+    topic_id            INTEGER NOT NULL,       -- -1 = BERTopic outlier cluster
+    name                TEXT,
+    n_docs              INTEGER,
+    top_words           TEXT,                   -- pipe separated, c-TF-IDF order
+    representative_doc  TEXT,
+    model               TEXT,
+    fitted_at           TEXT,
+    PRIMARY KEY (corpus, topic_id)
+);
+
+CREATE TABLE IF NOT EXISTS topic_assignments (
+    corpus    TEXT NOT NULL,
+    unit_id   TEXT NOT NULL,                    -- sentence_id
+    call_id   INTEGER NOT NULL,
+    topic_id  INTEGER,
+    prob      REAL,                             -- HDBSCAN membership; NULL if reassigned from outlier
+    PRIMARY KEY (corpus, unit_id)
+);
+CREATE INDEX IF NOT EXISTS ix_topic_assignments_call ON topic_assignments(call_id);
+
+-- call_scores is derived data: rebuilt with pandas.to_sql by nlp_scores.py.
 
 CREATE TABLE IF NOT EXISTS run_log (
     run_id        TEXT,

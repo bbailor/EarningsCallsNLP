@@ -45,14 +45,21 @@ def word_count(text: str) -> int:
 def assign_sections(speaker_types: list[str | None]) -> list[str]:
     """Label each turn prepared_remarks or qa.
 
-    Same rule the API documents for its `section` filter: Q&A starts at the
-    first analyst turn (first shareholder turn if there are no analysts).
-    Computing it locally saves one API request per call.
+    Based on the rule the API documents for its `section` filter (Q&A starts
+    at the first analyst turn, first shareholder turn if there are no
+    analysts), with one guard: the analyst turn must come after an executive
+    has spoken. Some IR heads are ex-analysts and the API tags them `analyst`
+    (e.g. NVIDIA's Toshiya Hari), which would otherwise mark the whole call
+    as Q&A. Computing it locally saves one API request per call.
     """
     types = [(s or "").lower() for s in speaker_types]
-    start = next((i for i, s in enumerate(types) if s == "analyst"), None)
-    if start is None:
-        start = next((i for i, s in enumerate(types) if s == "shareholder"), None)
+    first_exec = next((i for i, s in enumerate(types) if s == "executive"), -1)
+    start = None
+    for role in ("analyst", "shareholder"):
+        hits = [i for i, s in enumerate(types) if s == role]
+        if hits:
+            start = next((i for i in hits if i > first_exec), hits[0])
+            break
     if start is None:
         return ["prepared_remarks"] * len(types)
     # The operator line that introduces the first question belongs to Q&A.
