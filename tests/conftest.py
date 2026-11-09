@@ -145,6 +145,7 @@ def cfg_path(tmp_path, monkeypatch):
     base.update({"data_dir": str(tmp_path / "data"), "tickers": ["NVDA", "CAT", "BRK.B"],
                  "date_from": "2025-01-01", "date_to": "2025-09-30"})
     base["market"]["pause_between_tickers_sec"] = 0
+    base["earningscalls"]["include_non_ai_calls"] = False   # tests assert the AI-only selection
     p = tmp_path / "config.yaml"
     p.write_text(yaml.safe_dump(base))
     monkeypatch.setenv("EARNINGSCALLS_API_KEY", "test-key")

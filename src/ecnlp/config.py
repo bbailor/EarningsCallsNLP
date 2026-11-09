@@ -46,6 +46,10 @@ class Paths:
         return self.root / "processed"
 
     @property
+    def models(self) -> Path:
+        return self.root / "models"
+
+    @property
     def logs(self) -> Path:
         return self.root / "logs"
 
@@ -54,7 +58,7 @@ class Paths:
         return self.root / "earnings_nlp.sqlite"
 
     def ensure(self) -> None:
-        for p in (self.raw_ec, self.raw_yf, self.processed, self.logs):
+        for p in (self.raw_ec, self.raw_yf, self.processed, self.models, self.logs):
             p.mkdir(parents=True, exist_ok=True)
 
 
@@ -69,6 +73,7 @@ class Config:
     market: dict[str, Any] = field(default_factory=dict)
     cleaning: dict[str, Any] = field(default_factory=dict)
     events: dict[str, Any] = field(default_factory=dict)
+    nlp: dict[str, Any] = field(default_factory=dict)
 
     @property
     def api_key(self) -> str | None:
@@ -139,4 +144,5 @@ def load_config(path: str | os.PathLike | None = None, overrides: dict | None = 
         market=raw.get("market") or {},
         cleaning=raw.get("cleaning") or {},
         events=raw.get("events") or {},
+        nlp=raw.get("nlp") or {},
     )

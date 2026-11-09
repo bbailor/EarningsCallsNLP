@@ -49,6 +49,8 @@ def test_sections_start_at_first_analyst():
     assert assign_sections(["operator", "executive", "operator", "analyst", "executive"]) == \
         ["prepared_remarks", "prepared_remarks", "qa", "qa", "qa"]
     assert assign_sections(["executive", "executive"]) == ["prepared_remarks"] * 2
+    # IR head tagged "analyst" opens the call: Q&A still starts at the first real question
+    assert assign_sections(["operator", "analyst", "executive", "operator", "analyst", "executive"]) ==         ["prepared_remarks"] * 3 + ["qa"] * 3
 
 
 def test_fiscal_period_from_title():

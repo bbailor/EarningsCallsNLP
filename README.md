@@ -1,4 +1,4 @@
-# Earnings Call Technology Analyzer — Data Pipeline (Sprint 1)
+# Earnings Call Technology Analyzer — Data + NLP Pipeline
 
 Pulls earnings call transcripts that mention AI from **earningscalls.dev**, pulls matching market data from **Yahoo Finance (yfinance)**, and cleans/organizes both into a SQLite database plus analysis-ready files for the FinBERT/BERTopic stage. Covers work units **NLP-01, NLP-02, NLP-03**, and lays the groundwork for **POT-02** (keyword dictionary) and **POT-03** (event-window returns).
 
@@ -9,7 +9,7 @@ conda env create -f environment.yml && conda activate ecnlp   # or: pip install 
 cp .env.example .env            # paste your Ultra API key into .env
 python -m ecnlp.pipeline check  # ~4 requests: verifies key, quota, live response schema
 python -m ecnlp.pipeline all    # transcripts -> market -> prepare -> events -> export
-pytest                          # 16 offline tests (mocked API + mocked yfinance)
+pytest                          # offline tests (mocked API, yfinance, FinBERT and BERTopic)
 ```
 
 Run stages individually with `transcripts`, `market`, `prepare`, `events`, `export`. Override the ticker list for a quick test: `--tickers NVDA,MSFT`. Everything is configured in `config.yaml`.
@@ -30,6 +30,40 @@ Run stages individually with `transcripts`, `market`, `prepare`, `events`, `expo
 - `nlp_segments.parquet` — full speaker turns, if you prefer turn‑level modeling.
 - `calls_master.csv` — one row per call: transcript stats, AI sentence density, sector, market cap, and every event‑window return. NLP scores get joined here on `call_id` for the cross‑reference.
 - `coverage_report.csv` — per ticker: calls in API, calls mentioning AI, calls with text, Yahoo status, events with complete windows (documents sample attrition, per SDS §3.1).
+
+## NLP workflow (Sprint 2): FinBERT + BERTopic
+
+Sample: the 10 largest S&P 500 companies (`tickers` in `config.yaml`), calls from `date_from: 2021-11-01` (last five years), **all** earnings calls (`include_non_ai_calls: true`, `calls.mentions_ai` keeps the AI flag). Yahoo Finance is not needed for this workflow; skip the `market`/`events` stages.
+
+```bash
+pip install -e ".[nlp]"                       # torch, transformers, bertopic, ...
+python -m ecnlp.pipeline transcripts          # pull (cached; ~1.2 requests per call)
+python -m ecnlp.pipeline prepare              # clean + sentence split
+python -m ecnlp.pipeline nlp                  # sentiment -> topics -> scores
+# or on Unity: sbatch slurm/pull_data.sbatch, then sbatch slurm/nlp.sbatch (GPU)
+```
+
+| Stage | What it does | Output |
+|---|---|---|
+| `sentiment` | FinBERT (`ProsusAI/finbert`) on every non-boilerplate sentence and on every AI mention with ±1 sentence of context. Incremental: only new or changed text is scored, committed every 2,000 sentences. | `sentiment` table (p_positive / p_negative / p_neutral, label, score = p_pos − p_neg) |
+| `topics` | One BERTopic model (MiniLM embeddings → UMAP → HDBSCAN → c-TF-IDF, earnings-call filler removed) over all sentences in the sample, so topic ids are comparable across firms and quarters. Refit every run; embeddings are cached in `data/models/`. | `topics`, `topic_assignments`; saved model in `data/models/bertopic_sentences/` |
+| `scores` | Aggregates both to one row per call. | `call_scores` table + files below; also joined into `calls_master.csv` |
+
+**NLP variables per call** (`data/processed/nlp_call_scores.csv`, one row per call with ticker / fiscal period / date):
+
+- `sent_<slice>_{n, mean, net_tone, pct_pos, pct_neg}` for slices `all`, `prepared` (prepared remarks), `qa`, `exec`, `analyst`, `nonai` (sentences without AI terms) and `ai_ctx` (AI mentions with context). `mean` averages p_pos − p_neg; `net_tone` = (#pos − #neg) / (#pos + #neg).
+- `sent_ai_minus_nonai`: how much more positive management is about AI than about everything else.
+- `topic_entropy` (0 = one topic, 1 = evenly spread), `topic_dominant`, `topic_outlier_share`, `topic_<id>_share` for the 20 largest topics (names in `nlp_topics.csv`).
+
+Other exports: `nlp_topic_shares.csv` (every call × topic share, long format), `nlp_sentence_scores.parquet` (sentence-level label, probabilities, topic) and `nlp_topics.csv` (topic words + representative sentence).
+
+Knobs in `config.yaml` under `nlp:`: switch FinBERT to `yiyanghkust/finbert-tone`, model AI themes only with `topics.corpus: ai_contexts`, change topic granularity with `min_topic_size` / `nr_topics`. Changing the sentiment model scores everything again under the new model name; the old scores are kept.
+
+Caveats to discuss as a team:
+- FinBERT reads direction words, not accounting meaning. "Past dues were down 31 basis points" is scored negative. Spot-check `nlp_sentence_scores.parquet` before relying on small differences.
+- BERTopic is stochastic across machines even with `seed`. Fit the final model once and keep `data/models/` with the results.
+- The NLP stages only cover the configured tickers and date range, so leftover pilot calls in the database (e.g. CAT) are excluded.
+- Section split: Q&A starts at the first analyst turn **after an executive has spoken**. Without that guard, IR heads the API tags as `analyst` (NVIDIA) made whole calls "Q&A".
 
 ## How the earningscalls.dev pull works (and stays inside the Ultra quota)
 
@@ -77,8 +111,12 @@ src/ecnlp/
   prepare.py                segments -> sentences
   timeutils.py / events.py  call timing, day 0, event-window returns
   exports.py                parquet/csv exports + coverage report
+  sentiment.py              FinBERT sentence / AI-context sentiment
+  topics.py                 BERTopic topic model
+  nlp_scores.py             call-level NLP variables + nlp_* exports
   db.py                     SQLite schema (SDS §5)
   pipeline.py               CLI
 tests/                      mocked end-to-end tests
-slurm/pull_data.sbatch      Unity job script
+slurm/pull_data.sbatch      Unity job script (transcript pull)
+slurm/nlp.sbatch            Unity GPU job script (NLP stages)
 ```

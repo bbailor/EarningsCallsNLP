@@ -77,6 +77,9 @@ def export_all(cfg: Config, con: sqlite3.Connection) -> dict[str, str]:
     has_er = con.execute("SELECT name FROM sqlite_master WHERE name='event_returns'").fetchone()
     er_join = "LEFT JOIN event_returns e ON e.call_id = c.call_id" if has_er else ""
     er_cols = ", e.*" if has_er else ""
+    if con.execute("SELECT name FROM sqlite_master WHERE name='call_scores'").fetchone():
+        er_join += " LEFT JOIN call_scores ns ON ns.call_id = c.call_id"
+        er_cols += ", ns.*"
     master = db.read_df(con, f"""
         SELECT c.*, co.company_name AS co_name, co.sector, co.industry, co.yf_sector, co.yf_industry,
                co.yf_market_cap {er_cols}
