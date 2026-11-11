@@ -7,4 +7,5 @@ data/
 __pycache__/
 *.egg-info/
 .pytest_cache/
-slurm-*.out.DS_Store
+slurm-*.out
+.DS_Store
