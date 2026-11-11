@@ -1,3 +1,7 @@
+"""Print coverage, calls, sample AI mentions and the run log (reads existing outputs).
+
+    python scripts/view_data.py    # from the repo root
+"""
 import sqlite3
 import pandas as pd
 

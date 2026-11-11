@@ -19,12 +19,13 @@ Current status, decisions and sprint history are in these files. Read them befor
 - `src/ecnlp/` is the package: earningscalls.dev client, yfinance pull, cleaning, event returns, exports, pipeline CLI. NLP code is `sentiment.py` (FinBERT), `topics.py` (BERTopic) and `nlp_scores.py`.
 - `tests/` has `test_pipeline.py` and `test_nlp.py` (mocked APIs only)
 - `config.yaml` holds tickers, `date_from`, `provider`, `naive_timestamp_tz`, `include_non_ai_calls` and the AI keyword list
-- `.env` holds the API key. Never commit it.
+- `.env` holds the API key. Never commit it. `.env.example` is the template.
+- `scripts/` has read-only helpers: `demo.py` (step-by-step NLP demo) and `view_data.py` (coverage, calls, run log). Run from the repo root.
 - `data/earnings_nlp.sqlite` is the source of truth. Exports in `data/processed/` are rebuilt from it.
 - `data/raw/` is the API cache. Deleting it costs quota.
 - `data/logs/` has one log per run
 - `slurm/` has the Unity sbatch scripts (`pull_data.sbatch`, `nlp.sbatch`); `environment.yml` is at the repo root (written, not yet tested on Unity)
-- `docs/memory/` is the shared project memory; `docs/claude-project-instructions.md` is the text pasted into the claude.ai project
+- `docs/memory/` is the shared project memory; `docs/claude-project-instructions.md` is the text pasted into the claude.ai project; `docs/sprints/` holds work plans and status reports
 
 ## Key data files
 - `data/processed/calls_master.csv`: one row per call, with returns. NLP scores join here on `call_id`.

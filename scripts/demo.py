@@ -1,7 +1,7 @@
 """Step-by-step demo of the NLP results (reads existing outputs; re-runs nothing).
 
-    python demo.py                 # walk through every step, Enter to advance
-    python demo.py "Some sentence" # just score one sentence with FinBERT
+    python scripts/demo.py                 # walk through every step, Enter to advance
+    python scripts/demo.py "Some sentence" # just score one sentence with FinBERT
 """
 import sqlite3
 import sys

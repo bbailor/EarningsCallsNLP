@@ -117,6 +117,10 @@ src/ecnlp/
   db.py                     SQLite schema (SDS §5)
   pipeline.py               CLI
 tests/                      mocked end-to-end tests
+scripts/demo.py             step-by-step demo of NLP outputs (read-only)
+scripts/view_data.py        print coverage, calls and run log (read-only)
+docs/memory/                shared project memory (state, decisions, sprint log)
+docs/sprints/               work plans and status reports
 slurm/pull_data.sbatch      Unity job script (transcript pull)
 slurm/nlp.sbatch            Unity GPU job script (NLP stages)
 ```

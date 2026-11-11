@@ -23,12 +23,18 @@ Last updated: 2026-11-11 (end of Sprint 2 report). Update this file whenever a w
 | NLP-08 | Model comparison and evaluation plan | Plan written (Sprint 2); comparison not run yet |
 | NLP-03 | Unity cluster compatibility | Written, NOT tested on Unity |
 | NLP-04 | Transcript source documentation | [status ____] |
-| NLP-05 | Top-10 S&P 500, five-year pull (about 200 calls) | Planned for Sprint 3 |
+| NLP-05 | Top-10 S&P 500, five-year pull (about 200 calls) | Transcripts mostly pulled: 163 calls, 9 tickers, 2021-11-17 to 2026-11-02 (AI-mentioning calls only). BRK.B has 0 calls in the API. Market data and event returns only run for NVDA and CAT: 6 of 166 calls have `car_mkt_0_1` |
 | NLP-06 | Transcript-to-NLP-variable workflow | Pretrained FinBERT + BERTopic stages built and run (Sprint 2): 163 calls, 9 tickers, 54 topics, 69,546 scored sentences. Full five-year sample not run yet |
 | NLP-07 | Baseline NLP variables and summary statistics | Planned for Sprint 3 |
 | (none) | Hand-labeled test set (300-500 mentions) | Planned for Sprint 3 |
 | (none) | First version of our own model | Planned for Sprint 3 |
 | (none) | Streamlit dashboard | Later; pipeline already stores what it needs |
+
+## Known data gaps (checked 2026-11-11)
+- `market` and `events` were last run on the NVDA/CAT test sample. Re-run `market`, `events`, `export` for all tickers (Yahoo only, no earningscalls.dev quota).
+- `include_non_ai_calls` is `false` in config.yaml, but decisions.md (2026-11-11) says `true`. Confirm which is current before the next pull; `true` costs extra requests.
+- CAT (3 calls) is left over from the test run and is not in the top-10 ticker list. Decide whether to drop it from analysis.
+- BRK.B: Berkshire holds no quarterly calls, so the sample is effectively 9 companies. Decide whether to replace it (LLY or WMT).
 
 ## Open questions
 - Exactly what counts as "our own model" for Prof. Glatzer (baseline classifier, fine-tuned DistilBERT, or both)?
