@@ -53,7 +53,7 @@ python -m ecnlp.pipeline nlp                  # sentiment -> topics -> scores
 
 - `sent_<slice>_{n, mean, net_tone, pct_pos, pct_neg}` for slices `all`, `prepared` (prepared remarks), `qa`, `exec`, `analyst`, `nonai` (sentences without AI terms) and `ai_ctx` (AI mentions with context). `mean` averages p_pos − p_neg; `net_tone` = (#pos − #neg) / (#pos + #neg).
 - `sent_ai_minus_nonai`: how much more positive management is about AI than about everything else.
-- `topic_entropy` (0 = one topic, 1 = evenly spread), `topic_dominant`, `topic_outlier_share`, `topic_<id>_share` for the 20 largest topics (names in `nlp_topics.csv`).
+- `topic_entropy` (0 = one topic, 1 = evenly spread over every topic in the model), `topic_dominant`, `topic_outlier_share`, `topic_<id>_share` for the 20 largest topics (names in `nlp_topics.csv`).
 
 Other exports: `nlp_topic_shares.csv` (every call × topic share, long format), `nlp_sentence_scores.parquet` (sentence-level label, probabilities, topic) and `nlp_topics.csv` (topic words + representative sentence).
 

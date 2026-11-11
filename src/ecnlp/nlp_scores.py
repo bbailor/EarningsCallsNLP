@@ -13,7 +13,8 @@ analyst, nonai) plus ai_ctx (AI mentions with context):
 
 plus sent_ai_minus_nonai (AI-context tone relative to the rest of the call).
 
-Topic columns: topic_entropy (normalized 0-1; 0 = one topic), topic_dominant,
+Topic columns: topic_entropy (0 = one topic, 1 = evenly spread over every
+topic in the model), topic_dominant,
 topic_outlier_share and topic_<id>_share for the `wide_top_n` largest topics.
 Every topic's share is in nlp_topic_shares.csv (long format).
 """
@@ -105,10 +106,13 @@ def topic_features(cfg: Config, shares: pd.DataFrame) -> pd.DataFrame:
     wide_n = int((cfg.nlp.get("topics") or {}).get("wide_top_n", 20))
     real = shares[shares["topic_id"] >= 0].copy()
     real["share_ex_outlier"] = real["n"] / real.groupby("call_id")["n"].transform("sum")
+    # Normalize by every topic in the model, not just the ones a call uses, so
+    # a call split 50/50 over 2 topics scores lower than one spread over 40.
+    n_topics = real["topic_id"].nunique()
 
     def entropy(p: pd.Series) -> float:
         p = p[p > 0]
-        return float(-(p * np.log(p)).sum() / np.log(len(p))) if len(p) > 1 else 0.0
+        return float(-(p * np.log(p)).sum() / np.log(n_topics)) if n_topics > 1 else 0.0
 
     out = pd.DataFrame({
         "topic_n_distinct": real.groupby("call_id").size(),
