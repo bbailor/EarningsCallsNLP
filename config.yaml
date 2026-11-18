@@ -63,7 +63,7 @@ earningscalls:
   # true  = keep every earnings call and set calls.mentions_ai = 0/1, which
   #         gives a non-AI control group for the regressions later.
   # Sentiment/topics should describe whole calls, not only AI-mentioning ones.
-  include_non_ai_calls: false
+  include_non_ai_calls: true
 
   # Call lists change as new calls arrive; transcripts do not.
   call_list_cache_days: 1

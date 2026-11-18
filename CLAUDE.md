@@ -13,7 +13,9 @@ Current status, decisions and sprint history are in these files. Read them befor
 - Small run: `python -m ecnlp.pipeline all --tickers NVDA,CAT`
 - Full run: `python -m ecnlp.pipeline all` (transcripts -> market -> prepare -> events -> export)
 - NLP stages: `python -m ecnlp.pipeline nlp` (sentiment -> topics -> scores); single stages: `sentiment`, `topics`, `scores`
-- Tests: `pytest` (16 tests at end of Sprint 1, 22 after the NLP stages; all must pass before a commit)
+- Summary statistics (NLP-07): `python -m ecnlp.pipeline summary` (run `export` after `nlp` first); writes tables and figures to `data/processed/summary/`
+- NLP runs log Python, package versions and model revisions at the start, and store them in `run_log.notes`
+- Tests: `pytest` (16 tests at end of Sprint 1, 22 after the NLP stages, 26 after version logging and summary stats; all must pass before a commit)
 
 ## Layout
 - `src/ecnlp/` is the package: earningscalls.dev client, yfinance pull, cleaning, event returns, exports, pipeline CLI. NLP code is `sentiment.py` (FinBERT), `topics.py` (BERTopic) and `nlp_scores.py`.
@@ -24,7 +26,7 @@ Current status, decisions and sprint history are in these files. Read them befor
 - `data/earnings_nlp.sqlite` is the source of truth. Exports in `data/processed/` are rebuilt from it.
 - `data/raw/` is the API cache. Deleting it costs quota.
 - `data/logs/` has one log per run
-- `slurm/` has the Unity sbatch scripts (`pull_data.sbatch`, `nlp.sbatch`); `environment.yml` is at the repo root (written, not yet tested on Unity)
+- Compute target is AWS (decided 2026-11-18, setup not started). `slurm/` holds the old Unity sbatch scripts, kept for reference only; `environment.yml` is at the repo root (never tested on a cluster)
 - `docs/memory/` is the shared project memory; `docs/claude-project-instructions.md` is the text pasted into the claude.ai project; `docs/sprints/` holds work plans and status reports
 
 ## Key data files

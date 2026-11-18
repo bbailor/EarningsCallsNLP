@@ -2,6 +2,9 @@
 
 Newest first. Each entry: date, decision, why. Never delete entries; mark replaced ones "Superseded by <date>".
 
+## 2026-11-18: AWS instead of the Unity cluster for compute
+NLP-03 now targets AWS, not Unity. The `slurm/` scripts are kept for reference but are no longer the plan. Which AWS service (EC2 GPU instance, SageMaker, other), account owner and budget: [____]. Why: [____].
+
 ## 2026-11-11: Pretrained models first, then our own
 Run pretrained FinBERT and BERTopic on a small sample of AI mentions, write one page on how each works, then build our own model. Why: Prof. Glatzer's Sprint 1 feedback, given our limited NLP experience.
 

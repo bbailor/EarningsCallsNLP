@@ -27,6 +27,8 @@ def setup_logging(log_dir: Path, run_name: str = "run", level: int = logging.INF
     root.addHandler(ch)
 
     # third-party chatter
-    for noisy in ("urllib3", "yfinance", "peewee", "curl_cffi", "httpx", "httpx2", "huggingface_hub", "filelock"):
+    # numba (via UMAP/HDBSCAN) writes ~100k DEBUG lines per BERTopic fit
+    for noisy in ("urllib3", "yfinance", "peewee", "curl_cffi", "httpx", "httpx2", "huggingface_hub", "filelock",
+                  "numba", "matplotlib", "PIL", "fsspec", "torch", "h5py"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
     return log_file

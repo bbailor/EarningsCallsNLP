@@ -14,7 +14,7 @@ paths:
 ## Models
 - FinBERT (`ProsusAI/finbert`): sentiment, labels positive, neutral or negative with a score. Input is AI-mention context text.
 - BERTopic: topics for AI mentions. Pipeline is sentence embeddings, then UMAP, then HDBSCAN, then c-TF-IDF keywords.
-- Our own model: buzzword vs. substance on a 0-3 sophistication scale. Start with a baseline: TF-IDF + logistic regression, or Sentence-BERT embeddings + logistic regression. Fine-tuning DistilBERT is a later option that needs the Unity GPU.
+- Our own model: buzzword vs. substance on a 0-3 sophistication scale. Start with a baseline: TF-IDF + logistic regression, or Sentence-BERT embeddings + logistic regression. Fine-tuning DistilBERT is a later option that needs an AWS GPU.
 - Run pretrained models on a small sample first, and document how each works before scaling up.
 
 ## Evaluation
@@ -32,5 +32,8 @@ paths:
 - Planned tables: `tech_mentions`, `topics`, `annotations`, `call_scores`.
 - Save model outputs to `data/processed/` and record the model name and version with each run.
 
-## Unity cluster
-- Use `slurm/` scripts. Set the project storage path before submitting. Never copy `.env` into shared storage.
+## AWS compute (replaced Unity on 2026-11-18)
+- Never copy `.env` into an AMI, S3 bucket or shared storage. Pass the API key as an environment variable or through a secrets store.
+- Point `ECNLP_DATA_DIR` at the instance's data volume, and copy outputs and logs back as evidence.
+- Shut instances down when a job finishes. GPU instances bill by the hour.
+- `slurm/` is the old Unity setup, kept for reference only.

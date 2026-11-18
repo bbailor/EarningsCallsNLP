@@ -14,6 +14,7 @@ NLP stages (offline, read the prepared `sentences` table; no market data needed)
     python -m ecnlp.pipeline topics        # BERTopic over the whole corpus (refit each run)
     python -m ecnlp.pipeline scores        # call-level NLP variables + nlp_* exports
     python -m ecnlp.pipeline nlp           # sentiment -> topics -> scores
+    python -m ecnlp.pipeline summary       # NLP-07 tables + figures (run `export` after `nlp` first)
 
 Options: --config PATH, --tickers NVDA,MSFT (override the list), --verbose
 """
@@ -22,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -110,6 +112,18 @@ def run(stages: list[str], cfg: Config) -> int:
     con = db.connect(cfg.paths.db)
     run_id = uuid.uuid4().hex[:8]
     rc = 0
+    env = None
+    if any(s in NLP_STAGES for s in stages):
+        from .runinfo import run_environment
+
+        env = run_environment(cfg)
+        log.info("Environment: Python %s (%s)", env["python"], env["python_executable"])
+        log.info("Packages: %s", ", ".join(f"{k}={v}" for k, v in env["packages"].items()))
+        for role, m in env["models"].items():
+            log.info("Model %s: %s @ %s", role, m["name"], m["revision"] or "[not in local HF cache]")
+        if sys.prefix == sys.base_prefix and not os.environ.get("CONDA_PREFIX"):
+            log.warning("Not running inside a virtual environment (%s); activate .venv first",
+                        env["python_executable"])
     for stage in stages:
         started = datetime.now(timezone.utc).isoformat(timespec="seconds")
         api_req = cache_hits = 0
@@ -158,12 +172,21 @@ def run(stages: list[str], cfg: Config) -> int:
                 from .nlp_scores import build_call_scores
 
                 notes = json.dumps(build_call_scores(cfg, con))
+            elif stage == "summary":
+                from .summary_stats import build_summary
+
+                notes = json.dumps(build_summary(cfg))
         except EarningsCallsError as exc:
             log.error("%s stage stopped: %s", stage, exc)
             status, notes, rc = "error", str(exc), 1
         except Exception as exc:
             log.exception("%s stage failed", stage)
             status, notes, rc = "error", repr(exc), 1
+        if env is not None and stage in NLP_STAGES and status != "error":
+            # versions first in a compact form so they survive the 2000-char notes limit
+            compact = {"py": env["python"], "pkgs": env["packages"],
+                       "models": {k: f"{m['name']}@{(m['revision'] or '?')[:12]}" for k, m in env["models"].items()}}
+            notes = json.dumps({"env": compact, "result": json.loads(notes) if notes else None})
         db.upsert(con, "run_log", [{
             "run_id": run_id, "stage": stage, "started_at": started,
             "finished_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -177,7 +200,7 @@ def run(stages: list[str], cfg: Config) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Earnings call NLP data pipeline")
-    ap.add_argument("stage", choices=["check", "all", "nlp", *STAGES, *NLP_STAGES])
+    ap.add_argument("stage", choices=["check", "all", "nlp", "summary", *STAGES, *NLP_STAGES])
     ap.add_argument("--config", default=None)
     ap.add_argument("--tickers", default=None, help="comma-separated override of the ticker list")
     ap.add_argument("--verbose", action="store_true")

@@ -17,7 +17,7 @@
 5. Don't use Financial PhraseBank as a test set. FinBERT was trained on it.
 6. Split train and test sets by call or company, never by sentence.
 7. Prefer pretrained FinBERT and BERTopic on a small sample first, and explain how each model works inside before we build our own.
-8. I develop on Windows; give PowerShell/cmd commands, and Linux commands only for the Unity cluster.
+8. I develop on Windows; give PowerShell/cmd commands, and Linux commands only for AWS instances.
 
 ## How to work with me
 - I'm newer to NLP. When you introduce a model or metric, explain what it does in two or three plain sentences.
